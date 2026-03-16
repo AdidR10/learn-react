@@ -1,22 +1,50 @@
 import { useState, useEffect } from 'react';
 import Column from './components/Column';
+import Login from './components/Login'; // Import our new Login screen
 
 const API_URL = 'http://localhost:3000/api/tasks';
 
 export default function App() {
+  // --- NEW: Authentication State ---
+  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(null);
+
   const [tasks, setTasks] = useState([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
 
-  // Fetch tasks when the component mounts
+  // We only fetch tasks if we HAVE a token!
   useEffect(() => {
-    fetch(API_URL)
-      .then(res => res.json())
-      .then(data => setTasks(data))
-      .catch(err => console.error("Error fetching tasks:", err));
-  }, []);
+    if (!token) return;
 
-  // Create a new task via API
+    fetch(API_URL, {
+      headers: {
+        'Authorization': `Bearer ${token}` // Here is where we attach the JWT to prove who we are!
+      }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch (maybe token expired?)');
+        return res.json();
+      })
+      .then(data => setTasks(data))
+      .catch(err => {
+        console.error(err);
+        handleLogout(); // Force logout if token is bad
+      });
+  }, [token]); // This effect now runs whenever the 'token' changes!
+
+  // --- Login & Logout Handlers ---
+  const handleLoginSuccess = (jwtToken, username) => {
+    setToken(jwtToken);
+    setUser(username);
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    setTasks([]); // Clear data on logout
+  };
+
   const handleCreateTask = async (e) => {
     e.preventDefault(); 
     if (newTaskTitle.trim() === '') return;
@@ -25,7 +53,8 @@ export default function App() {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Attach token!
         },
         body: JSON.stringify({ title: newTaskTitle, description: newTaskDesc })
       });
@@ -41,11 +70,13 @@ export default function App() {
     }
   };
 
-  // Move or delete a task via API
   const moveTask = async (taskId, newStatus) => {
     if (newStatus === 'Delete') {
       try {
-        const res = await fetch(`${API_URL}/${taskId}`, { method: 'DELETE' });
+        const res = await fetch(`${API_URL}/${taskId}`, { 
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` } // Attach token!
+        });
         if (res.ok) setTasks(tasks.filter(task => task.id !== taskId));
       } catch (err) {
         console.error("Error deleting task:", err);
@@ -54,7 +85,10 @@ export default function App() {
       try {
         const res = await fetch(`${API_URL}/${taskId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` // Attach token!
+          },
           body: JSON.stringify({ status: newStatus })
         });
         
@@ -70,9 +104,23 @@ export default function App() {
     }
   };
 
+  // --- Conditional Rendering based on Auth State ---
+  
+  // If we don't have a token, show ONLY the login screen!
+  if (!token) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // If we DO have a token, show the main application board!
   return (
     <div>
-      <h1>My Task Board</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>My Task Board</h1>
+        <div>
+          <span>Welcome, <strong>{user}</strong>! </span>
+          <button onClick={handleLogout} style={{ padding: '4px 8px', cursor: 'pointer' }}>Log Out</button>
+        </div>
+      </div>
       
       <form onSubmit={handleCreateTask} style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
         <input 
