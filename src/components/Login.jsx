@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext'; // Import our new hook
 
-export default function Login({ onLoginSuccess }) {
+export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  // We grab the global `login` function from our AuthContext!
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -19,10 +23,9 @@ export default function Login({ onLoginSuccess }) {
       const data = await res.json();
 
       if (res.ok) {
-        // Success! We call the parent function and pass the token and username
-        onLoginSuccess(data.token, data.username);
+        // We call the GLOBAL login function, which updates the state everywhere
+        login(data.token, data.username);
       } else {
-        // Show the error message from the backend
         setError(data.error);
       }
     } catch (err) {
@@ -34,7 +37,6 @@ export default function Login({ onLoginSuccess }) {
     <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: 'white' }}>
       <h2>Log In to Task Board</h2>
       
-      {/* Show error message if login fails */}
       {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
       
       <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

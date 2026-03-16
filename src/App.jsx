@@ -1,49 +1,36 @@
 import { useState, useEffect } from 'react';
 import Column from './components/Column';
-import Login from './components/Login'; // Import our new Login screen
+import Login from './components/Login';
+import { useAuth } from './context/AuthContext'; // Import our new hook
 
 const API_URL = 'http://localhost:3000/api/tasks';
 
 export default function App() {
-  // --- NEW: Authentication State ---
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+  // --- We grab our global state instead of using local useState! ---
+  const { token, user, logout } = useAuth();
 
   const [tasks, setTasks] = useState([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
 
-  // We only fetch tasks if we HAVE a token!
   useEffect(() => {
     if (!token) return;
 
     fetch(API_URL, {
       headers: {
-        'Authorization': `Bearer ${token}` // Here is where we attach the JWT to prove who we are!
+        'Authorization': `Bearer ${token}`
       }
     })
       .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch (maybe token expired?)');
+        if (!res.ok) throw new Error('Failed to fetch');
         return res.json();
       })
       .then(data => setTasks(data))
       .catch(err => {
         console.error(err);
-        handleLogout(); // Force logout if token is bad
+        logout(); // Force logout if token is bad
       });
-  }, [token]); // This effect now runs whenever the 'token' changes!
-
-  // --- Login & Logout Handlers ---
-  const handleLoginSuccess = (jwtToken, username) => {
-    setToken(jwtToken);
-    setUser(username);
-  };
-
-  const handleLogout = () => {
-    setToken(null);
-    setUser(null);
-    setTasks([]); // Clear data on logout
-  };
+  }, [token, logout]); 
 
   const handleCreateTask = async (e) => {
     e.preventDefault(); 
@@ -54,7 +41,7 @@ export default function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Attach token!
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ title: newTaskTitle, description: newTaskDesc })
       });
@@ -75,7 +62,7 @@ export default function App() {
       try {
         const res = await fetch(`${API_URL}/${taskId}`, { 
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` } // Attach token!
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) setTasks(tasks.filter(task => task.id !== taskId));
       } catch (err) {
@@ -87,7 +74,7 @@ export default function App() {
           method: 'PUT',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}` // Attach token!
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ status: newStatus })
         });
@@ -104,21 +91,20 @@ export default function App() {
     }
   };
 
-  // --- Conditional Rendering based on Auth State ---
-  
   // If we don't have a token, show ONLY the login screen!
+  // Notice we don't need to pass 'onLoginSuccess' anymore because Login uses the global Context!
   if (!token) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <Login />;
   }
 
-  // If we DO have a token, show the main application board!
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>My Task Board</h1>
         <div>
           <span>Welcome, <strong>{user}</strong>! </span>
-          <button onClick={handleLogout} style={{ padding: '4px 8px', cursor: 'pointer' }}>Log Out</button>
+          {/* We call the global logout function! */}
+          <button onClick={logout} style={{ padding: '4px 8px', cursor: 'pointer' }}>Log Out</button>
         </div>
       </div>
       
