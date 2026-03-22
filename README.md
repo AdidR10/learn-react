@@ -1,19 +1,32 @@
-# Interactive Task Board
+# Full-Stack Task Board (React + Node.js)
 
-This is a starter React project designed to teach the fundamentals of React (JSX, Props, and State) by building a simple task management board.
+This project contains a full-stack Task Board application built to teach React, Node.js, Express, and modern Web Development concepts.
 
-## Getting Started
+## Project Structure
+The project is split into two completely separate applications:
+- `/frontend` - The React Vite Application
+- `/backend` - The Node.js Express Server
 
-To run the local development server and view the project in your browser:
+## How to run the application
 
-1. Open a terminal in the project directory (`c:\ns-projects\learn-react`).
-2. Run the following command:
-   ```bash
-   npm run dev
-   ```
-3. Open your browser and navigate to the URL provided in the terminal (usually `http://localhost:5173/`).
+Because there are two separate applications, you need to open **two separate terminal windows** and run both simultaneously.
 
-## Concepts Covered
-- **JSX**: Writing HTML-like syntax inside JavaScript.
-- **Props**: Passing data from a parent component to a child component.
-- **State (`useState`)**: Making components interactive by storing and updating local data.
+### 1. Start the Backend Server
+Open your first terminal and run:
+```bash
+cd backend
+npm run dev
+```
+*(This starts the Express server with Nodemon on `http://localhost:3000`)*
+
+### 2. Start the Frontend React App
+Open your second terminal and run:
+```bash
+cd frontend
+npm run dev
+```
+*(This starts the React Vite Server on `http://localhost:5173`)*
+
+---
+
+*Note: This project is part of the Lab3 Engineering Onboarding Bootcamp. See `/learning-docs` for detailed guides and explanations of the concepts used in this repository.*
