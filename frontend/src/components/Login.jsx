@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext'; // Import our new hook
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../store/authSlice';
+import { showNotification } from '../store/uiSlice';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   
-  // We grab the global `login` function from our AuthContext!
-  const { login } = useAuth();
+  // useDispatch gives us the ability to send Actions to the Redux Store
+  const dispatch = useDispatch();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -23,10 +25,13 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok) {
-        // We call the GLOBAL login function, which updates the state everywhere
-        login(data.token, data.username);
+        // Dispatch the login action to save the token in the Store!
+        dispatch(loginSuccess({ token: data.token, username: data.username }));
+        // Dispatch a global UI notification!
+        dispatch(showNotification({ message: `Welcome back, ${data.username}!`, type: 'success' }));
       } else {
         setError(data.error);
+        dispatch(showNotification({ message: data.error, type: 'error' }));
       }
     } catch (err) {
       setError('Network error. Is the backend running?');

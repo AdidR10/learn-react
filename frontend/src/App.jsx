@@ -1,36 +1,54 @@
 import { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from './store/authSlice';
+import { tasksLoaded, taskAdded, taskUpdated, taskDeleted, tasksCleared } from './store/tasksSlice';
+import { showNotification } from './store/uiSlice';
+
 import Column from './components/Column';
 import Login from './components/Login';
-import { useAuth } from './context/AuthContext'; // Import our new hook
+import Notification from './components/Notification';
 
 const API_URL = 'http://localhost:3000/api/tasks';
 
 export default function App() {
-  // --- We grab our global state instead of using local useState! ---
-  const { token, user, logout } = useAuth();
+  // --- REDUX: Read state from the Global Store ---
+  const { token, user } = useSelector((state) => state.auth);
+  const tasks = useSelector((state) => state.tasks.items);
 
-  const [tasks, setTasks] = useState([]);
+  // --- REDUX: Get the dispatch function to send actions ---
+  const dispatch = useDispatch();
+
+  // Local state for the inputs (we don't put this in Redux because no other component cares about what's temporarily in this text box)
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
 
+  // Fetch initial tasks
   useEffect(() => {
     if (!token) return;
 
     fetch(API_URL, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
+        if (!res.ok) throw new Error('Failed to fetch tasks');
         return res.json();
       })
-      .then(data => setTasks(data))
+      .then(data => {
+        // Dispatch the data to our Redux Store!
+        dispatch(tasksLoaded(data));
+      })
       .catch(err => {
         console.error(err);
-        logout(); // Force logout if token is bad
+        handleLogout(); 
       });
-  }, [token, logout]); 
+  }, [token, dispatch]); 
+
+  // Handlers
+  const handleLogout = () => {
+    dispatch(logout()); // Log out in Redux
+    dispatch(tasksCleared()); // Clear tasks in Redux
+    dispatch(showNotification({ message: 'Logged out successfully.', type: 'success' }));
+  };
 
   const handleCreateTask = async (e) => {
     e.preventDefault(); 
@@ -48,12 +66,16 @@ export default function App() {
       
       if (res.ok) {
         const newTask = await res.json();
-        setTasks([...tasks, newTask]);
+        // Send the new task to the Redux Store!
+        dispatch(taskAdded(newTask));
+        dispatch(showNotification({ message: 'Task Created!', type: 'success' }));
         setNewTaskTitle('');
         setNewTaskDesc('');
+      } else {
+        dispatch(showNotification({ message: 'Failed to create task.', type: 'error' }));
       }
     } catch (err) {
-      console.error("Error creating task:", err);
+      dispatch(showNotification({ message: 'Network error.', type: 'error' }));
     }
   };
 
@@ -64,9 +86,13 @@ export default function App() {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (res.ok) setTasks(tasks.filter(task => task.id !== taskId));
+        if (res.ok) {
+          // Tell Redux to delete it!
+          dispatch(taskDeleted(taskId));
+          dispatch(showNotification({ message: 'Task Deleted.', type: 'success' }));
+        }
       } catch (err) {
-        console.error("Error deleting task:", err);
+        dispatch(showNotification({ message: 'Error deleting task.', type: 'error' }));
       }
     } else {
       try {
@@ -81,30 +107,34 @@ export default function App() {
         
         if (res.ok) {
           const updatedTask = await res.json();
-          setTasks(tasks.map(task => 
-            task.id === taskId ? updatedTask : task
-          ));
+          // Tell Redux to update the task status!
+          dispatch(taskUpdated({ id: updatedTask.id, status: updatedTask.status }));
         }
       } catch (err) {
-        console.error("Error updating task status:", err);
+        dispatch(showNotification({ message: 'Error updating task status.', type: 'error' }));
       }
     }
   };
 
-  // If we don't have a token, show ONLY the login screen!
-  // Notice we don't need to pass 'onLoginSuccess' anymore because Login uses the global Context!
+  // Conditional Rendering
   if (!token) {
-    return <Login />;
+    return (
+      <>
+        <Notification />
+        <Login />
+      </>
+    );
   }
 
   return (
     <div>
+      <Notification />
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>My Task Board</h1>
+        <h1>My Task Board (Redux Powered)</h1>
         <div>
           <span>Welcome, <strong>{user}</strong>! </span>
-          {/* We call the global logout function! */}
-          <button onClick={logout} style={{ padding: '4px 8px', cursor: 'pointer' }}>Log Out</button>
+          <button onClick={handleLogout} style={{ padding: '4px 8px', cursor: 'pointer' }}>Log Out</button>
         </div>
       </div>
       
